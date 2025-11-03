@@ -1,6 +1,7 @@
 using Vonage_SSW_Workshop.Application;
 using Vonage_SSW_Workshop.Infrastructure;
 using Vonage_SSW_Workshop.WebApi;
+using Vonage_SSW_Workshop.WebApi.Endpoints;
 using Vonage_SSW_Workshop.WebApi.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,8 @@ app.MapOpenApi();
 app.MapCustomScalarApiReference();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+app.MapCallEndpoints();
 
 app.MapDefaultEndpoints();
 app.UseExceptionHandler();
