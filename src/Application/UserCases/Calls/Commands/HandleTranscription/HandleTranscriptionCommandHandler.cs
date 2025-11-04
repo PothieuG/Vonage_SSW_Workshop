@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Text;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Application.UseCases.Calls.Commands.HandleTranscription;
@@ -29,7 +30,25 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
 
         var transcriptionResult = downloadResult.Value;
         var transcriptText = transcriptionResult.Channels[0].ExtractTranscript();
-        _logger.LogInformation("Transcription: {TranscriptText}", transcriptText);
+
+        var callInfoObject = await _vonageService.GetCallInfoByConversationUuidAsync(webhookRequest.ConversationUuid, cancellationToken);
+        var callInfo = new CallInfo(
+            callInfoObject.Value.FromNumber,
+            callInfoObject.Value.ToNumber,
+            callInfoObject.Value.DurationSeconds);
+
+        var smsResult = await _vonageService.SendSmsAsync(
+            callInfo,
+            transcriptText,
+            cancellationToken);
+
+        if (smsResult.IsError)
+        {
+            _logger.LogError("HandleTranscriptionCommandHandler: échec de l'envoie du SMS pour la conversation {ConversationUuid}: {Errors}",
+                webhookRequest.ConversationUuid,
+                string.Join(", ", smsResult.Errors));
+            return smsResult.Errors;
+        }
 
         return Result.Success;
     }

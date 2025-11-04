@@ -2,8 +2,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SSW_x_Vonage_Clean_Architecture.Application.UseCases.Calls.Commands.HandleTranscription;
+using System.Text;
 using System.Text.Json;
 using Vonage;
+using Vonage.Messages.Sms;
 using Vonage.Voice;
 using Vonage.Voice.Nccos;
 using Vonage.Voice.Nccos.Endpoints;
@@ -103,8 +105,83 @@ internal sealed class VonageService : IVonageService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "VonageService: Unexpected error downloading transcription from {TranscriptionUrl}", transcriptionUrl);
-            return Error.Failure("Vonage.UnexpectedError", $"Unexpected error: {ex.Message}");
+            _logger.LogError(ex, "VonageService: Erreur lors de la récupération du transcript à l'url - {TranscriptionUrl}", transcriptionUrl);
+            return Error.Failure("Vonage.UnexpectedError", $"Erreur innattendu: {ex.Message}");
         }
+    }
+
+    public async Task<ErrorOr<CallInfo>> GetCallInfoByConversationUuidAsync(string conversationUuid, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("VonageService: Récupération des informations pour la conversation - {ConversationUuid}", conversationUuid);
+
+        try
+        {
+
+            var searchFilter = new CallSearchFilter
+            {
+                ConversationUuid = conversationUuid
+            };
+
+            var callsResponse = await _vonageClient.VoiceClient.GetCallsAsync(searchFilter);
+            var call = callsResponse.Embedded.Calls.FirstOrDefault();
+
+            if (call is null)
+            {
+                _logger.LogWarning(
+                    "VonageService: Aucun appel trouvé pour la conversation {ConversationUuid}",
+                    conversationUuid);
+
+                return Error.Failure(
+                    "Vonage.CallNotFound",
+                    "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
+            }
+
+            var callInfo = new CallInfo(call.From.Number, call.To.Number, call.Duration);
+
+            return callInfo;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la récuparation des informations de la conversation {ConversationUuid}", conversationUuid);
+            return Error.Failure("Vonage.GetCallFailed", $"Erreur lors de la récupération des informations de la conversation: {ex.Message}");
+        }
+    }
+
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("Envoie d'un SMS au numéro {PhoneNumber}", callInfo.ToNumber);
+            var smsMessage = BuildSmsMessage(callInfo.ToNumber, callInfo.DurationSeconds, transcript);
+
+            var smsRequest = new SmsRequest
+            {
+                From = callInfo.FromNumber,
+                To = callInfo.ToNumber,
+                Text = smsMessage
+            };
+
+            var messagesClient = _vonageClient.MessagesClient;
+            var response = await messagesClient.SendAsync(smsRequest);
+            return response.MessageUuid.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de l'envoie du SMS vers {ToNumber}", callInfo.ToNumber);
+            return Error.Failure("Vonage.SmsSendFailed", $"Erreur lors de l'envoie du SMS: {ex.Message}");
+        }
+    }
+    
+    private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText)
+    {
+        var messageBuilder = new StringBuilder();
+        messageBuilder.AppendLine("📞 Nouveau message vocal");
+        messageBuilder.AppendLine("----------------------");
+        messageBuilder.AppendLine($"De: {fromNumber}");
+        messageBuilder.AppendLine($"Durée: {durationSeconds}s");
+        messageBuilder.AppendLine($"🗒️ Transcription: {transcriptText}");
+        messageBuilder.AppendLine("----------------------");
+        messageBuilder.AppendLine("Bonne journée!");
+        return messageBuilder.ToString();
     }
 }
