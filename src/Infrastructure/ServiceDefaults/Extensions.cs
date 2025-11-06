@@ -30,7 +30,14 @@ public static class Extensions
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
             // Turn on resilience by default
-            http.AddStandardResilienceHandler();
+            http.AddStandardResilienceHandler(options =>
+            {
+                // Augmenter le timeout pour les appels MCP qui peuvent être longs
+                options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(5);
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+                // Le circuit breaker doit avoir au moins le double du timeout
+                options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(11);
+            });
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();

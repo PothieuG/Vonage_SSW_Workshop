@@ -5,6 +5,7 @@ using Vonage;
 using Vonage.Request;
 using Vonage_SSW_Workshop.Infrastructure.Vonage;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
+using Vonage_SSW_Workshop.Infrastructure.MCP;
 
 namespace Vonage_SSW_Workshop.Infrastructure;
 
@@ -29,6 +30,11 @@ public static class DependencyInjection
 
         services.AddScoped<IVonageAuthenticatedHttpClient, VonageAuthenticatedHttpClient>();
         services.AddScoped<IVonageService, VonageService>();
+
+        services.AddHttpClient<IMcpService, McpService>(client =>
+        {
+            client.BaseAddress = new Uri("http://localhost:5000/mcp");
+        });
 
         services.AddSingleton(TimeProvider.System);
     }

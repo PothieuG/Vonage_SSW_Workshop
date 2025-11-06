@@ -147,12 +147,12 @@ internal sealed class VonageService : IVonageService
         }
     }
 
-    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, CancellationToken cancellationToken)
     {
         try
         {
             _logger.LogInformation("Envoie d'un SMS au numéro {PhoneNumber}", callInfo.ToNumber);
-            var smsMessage = BuildSmsMessage(callInfo.ToNumber, callInfo.DurationSeconds, transcript);
+            var smsMessage = BuildSmsMessage(callInfo.ToNumber, callInfo.DurationSeconds, transcript, summarizedTranscriptText);
 
             var smsRequest = new SmsRequest
             {
@@ -172,13 +172,14 @@ internal sealed class VonageService : IVonageService
         }
     }
     
-    private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText)
+    private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText)
     {
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("📞 Nouveau message vocal");
         messageBuilder.AppendLine("----------------------");
         messageBuilder.AppendLine($"De: {fromNumber}");
         messageBuilder.AppendLine($"Durée: {durationSeconds}s");
+        messageBuilder.AppendLine($"🗒️ Résumé: {summarizedTranscriptText}");
         messageBuilder.AppendLine($"🗒️ Transcription: {transcriptText}");
         messageBuilder.AppendLine("----------------------");
         messageBuilder.AppendLine("Bonne journée!");
