@@ -44,6 +44,7 @@ internal sealed class VonageService : IVonageService
             {
                 EndOnSilence = "3",
                 BeepStart = true,
+                EventUrl = [$"{webhookBaseUrl}/api/calls/recorded"],
                 Transcription = new RecordAction.TranscriptionSettings
                 {
                     EventUrl = [$"{webhookBaseUrl}/api/calls/transcribed"],
@@ -172,6 +173,33 @@ internal sealed class VonageService : IVonageService
         }
     }
     
+    public async Task<ErrorOr<Stream>> DownloadRecordingAsync(string recordingUrl, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("VonageService: Téléchargement du recording depuis {RecordingUrl}", recordingUrl);
+
+        var responseResult = await _authenticatedHttpClient.GetAuthenticatedAsync(recordingUrl, cancellationToken);
+
+        if (responseResult.IsError)
+            return responseResult.Errors;
+
+        var response = responseResult.Value;
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Échec du téléchargement du recording: Status {StatusCode}", response.StatusCode);
+            return Error.Failure("Vonage.DownloadFailed", $"Status: {response.StatusCode}");
+        }
+
+        var memoryStream = new MemoryStream();
+        await using var httpStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await httpStream.CopyToAsync(memoryStream, cancellationToken);
+        memoryStream.Position = 0;
+
+        _logger.LogInformation("Recording téléchargé avec succès: {Size} bytes", memoryStream.Length);
+
+        return memoryStream;
+    }
+
     private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText)
     {
         var messageBuilder = new StringBuilder();

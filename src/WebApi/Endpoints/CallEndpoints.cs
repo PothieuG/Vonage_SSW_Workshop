@@ -1,4 +1,5 @@
 using MediatR;
+using Vonage_SSW_Workshop.Application.UseCases.Calls.Commands.HandleRecording;
 using Vonage_SSW_Workshop.Application.UseCases.Calls.Commands.HandleTranscription;
 using Vonage_SSW_Workshop.Application.UseCases.Calls.Commands.InitiateCall;
 using Vonage_SSW_Workshop.WebApi.Extensions;
@@ -26,10 +27,43 @@ public static class CallEndpoints
             .ProducesPost();
 
         group
+            .MapPost("/recorded", (
+                RecordingCallbackRequest request,
+                ILogger<Program> logger,
+                IServiceScopeFactory serviceScopeFactory) =>
+            {
+                logger.LogInformation(
+                    "Réception du 'Recording webhook' pour la conversation {ConversationUuid}",
+                    request.ConversationUuid);
+
+                var command = new HandleRecordingCommand(request);
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = serviceScopeFactory.CreateScope();
+                        var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+
+                        await sender.Send(command, CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Tâche de fond du recording en échec: {RecordingUuid}",
+                            request.RecordingUuid);
+                    }
+                }, CancellationToken.None);
+
+                return TypedResults.Ok(new { message = "Recording envoyé en tâche de fond..." });
+            })
+            .WithName("RecordingCallback")
+            .ProducesPost();
+
+        group
             .MapPost("/transcribed", (
                 TranscriptionCallbackRequest request,
                 ILogger<Program> logger,
-                IServiceProvider serviceProvider) => 
+                IServiceScopeFactory serviceScopeFactory) =>
             {
                 logger.LogInformation(
                     "Réception du 'Transcription webhook' pour la conversation {ConversationUuid}",
@@ -41,7 +75,7 @@ public static class CallEndpoints
                 {
                     try
                     {
-                        using var scope = serviceProvider.CreateScope();
+                        using var scope = serviceScopeFactory.CreateScope();
                         var sender = scope.ServiceProvider.GetRequiredService<ISender>();
 
                         await sender.Send(command, CancellationToken.None);

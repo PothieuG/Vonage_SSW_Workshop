@@ -9,15 +9,18 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
 {
     private readonly IVonageService _vonageService;
     private readonly IMcpService _mcpService;
+    private readonly ISupabaseStorageService _supabaseStorage;
     private readonly ILogger<HandleTranscriptionCommandHandler> _logger;
 
     public HandleTranscriptionCommandHandler(
         IVonageService vonageService,
         IMcpService mcpService,
+        ISupabaseStorageService supabaseStorage,
         ILogger<HandleTranscriptionCommandHandler> logger)
     {
         _vonageService = vonageService;
         _mcpService = mcpService;
+        _supabaseStorage = supabaseStorage;
         _logger = logger;
     }
 
@@ -39,10 +42,13 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
         _logger.LogInformation("Traitement MCP terminé avec succès - {SummarizedTranscriptText}", summarizedTranscriptText);
 
         var callInfoObject = await _vonageService.GetCallInfoByConversationUuidAsync(webhookRequest.ConversationUuid, cancellationToken);
-        var callInfo = new CallInfo(
-            callInfoObject.Value.FromNumber,
-            callInfoObject.Value.ToNumber,
-            callInfoObject.Value.DurationSeconds);
+        var callInfo = callInfoObject.Value;
+
+        var folderPath = $"{DateTime.UtcNow:yyyy-MM-dd}_{webhookRequest.ConversationUuid}";
+
+        await _supabaseStorage.UploadTextAsync(transcriptText, "transcription.txt", folderPath, cancellationToken);
+
+        await _supabaseStorage.UploadTextAsync(summarizedTranscriptText, "resume.txt", folderPath, cancellationToken);
 
         var smsResult = await _vonageService.SendSmsAsync(
             callInfo,

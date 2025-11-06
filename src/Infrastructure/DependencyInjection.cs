@@ -6,6 +6,7 @@ using Vonage.Request;
 using Vonage_SSW_Workshop.Infrastructure.Vonage;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
 using Vonage_SSW_Workshop.Infrastructure.MCP;
+using Vonage_SSW_Workshop.Infrastructure.Supabase;
 
 namespace Vonage_SSW_Workshop.Infrastructure;
 
@@ -35,6 +36,11 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri("http://localhost:5000/mcp");
         });
+
+        builder.Services.Configure<SupabaseStorageSettings>(
+            builder.Configuration.GetSection(SupabaseStorageSettings.SectionName));
+
+        services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
         services.AddSingleton(TimeProvider.System);
     }
