@@ -50,10 +50,13 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
 
         await _supabaseStorage.UploadTextAsync(summarizedTranscriptText, "resume.txt", folderPath, cancellationToken);
 
+        var audioUrl = _supabaseStorage.GetPublicUrl($"{folderPath}/audio.mp3");
+
         var smsResult = await _vonageService.SendSmsAsync(
             callInfo,
             transcriptText,
             summarizedTranscriptText,
+            audioUrl,
             cancellationToken);
 
         if (smsResult.IsError)

@@ -148,12 +148,12 @@ internal sealed class VonageService : IVonageService
         }
     }
 
-    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, string audioUrl, CancellationToken cancellationToken)
     {
         try
         {
             _logger.LogInformation("Envoie d'un SMS au numéro {PhoneNumber}", callInfo.ToNumber);
-            var smsMessage = BuildSmsMessage(callInfo.ToNumber, callInfo.DurationSeconds, transcript, summarizedTranscriptText);
+            var smsMessage = BuildSmsMessage(callInfo.ToNumber, callInfo.DurationSeconds, transcript, summarizedTranscriptText, audioUrl);
 
             var smsRequest = new SmsRequest
             {
@@ -200,7 +200,7 @@ internal sealed class VonageService : IVonageService
         return memoryStream;
     }
 
-    private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText)
+    private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText, string audioUrl)
     {
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("📞 Nouveau message vocal");
@@ -209,6 +209,7 @@ internal sealed class VonageService : IVonageService
         messageBuilder.AppendLine($"Durée: {durationSeconds}s");
         messageBuilder.AppendLine($"🗒️ Résumé: {summarizedTranscriptText}");
         messageBuilder.AppendLine($"🗒️ Transcription: {transcriptText}");
+        messageBuilder.AppendLine($"🎧 Audio: {audioUrl}");
         messageBuilder.AppendLine("----------------------");
         messageBuilder.AppendLine("Bonne journée!");
         return messageBuilder.ToString();

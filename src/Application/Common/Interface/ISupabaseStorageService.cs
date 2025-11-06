@@ -15,4 +15,6 @@ public interface ISupabaseStorageService
         string fileName,
         string folderPath,
         CancellationToken cancellationToken = default);
+
+    string GetPublicUrl(string filePath);
 }

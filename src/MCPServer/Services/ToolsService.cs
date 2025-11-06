@@ -24,6 +24,7 @@ public class ToolsService
             "translate_text" => await _ollama.Translate(
                 arguments?["text"]?.ToString() ?? "",
                 arguments?["target_language"]?.ToString() ?? "français"),
+            _ => throw new NotImplementedException(),
         };
     }
 
