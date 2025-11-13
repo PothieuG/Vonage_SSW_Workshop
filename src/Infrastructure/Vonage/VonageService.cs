@@ -1,44 +1,38 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Vonage;
 using Vonage.Request;
+using Vonage_SSW_Workshop.Application.Common.Interfaces;
+using Vonage.Messages;
 using Vonage.Voice;
 using Vonage.Voice.Nccos;
 using Vonage.Voice.Nccos.Endpoints;
-using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Infrastructure.Vonage;
 
 internal sealed class VonageService : IVonageService
 {
-    private readonly VonageClient _vonageClient;
-    private readonly VonageSettings _settings;
+    private readonly WorkshopSettings _settings;
     private readonly HttpClient _httpClient;
+    private readonly IMessagesClient _messagesClient;
+    private readonly IVoiceClient _voiceClient;
     private readonly ILogger<VonageService> _logger;
 
     public VonageService(
-        IOptions<VonageSettings> settings,
+        IOptions<WorkshopSettings> settings,
         IHttpClientFactory httpClientFactory,
+        IMessagesClient messagesClient,
+        IVoiceClient voiceClient,
         ILogger<VonageService> logger)
     {
         _settings = settings.Value;
         _httpClient = httpClientFactory.CreateClient();
+        _messagesClient = messagesClient;
+        _voiceClient = voiceClient;
         _logger = logger;
-
-        var privateKey = GetPrivateKeyContent(_settings.ApplicationKey);
-        var credentials = Credentials.FromAppIdAndPrivateKey(
-            _settings.ApplicationId,
-            privateKey);
-        _vonageClient = new VonageClient(credentials);
     }
-
-    private static string GetPrivateKeyContent(string applicationKey)
-    {
-        if (File.Exists(applicationKey))
-            return File.ReadAllText(applicationKey);
-        return applicationKey;
-    }
-
+    
     public async Task<string> InitiateCallAsync(string phoneNumber, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("VonageService - Appel depuis {FromNumber} vers {PhoneNumber}", _settings.FromNumber, phoneNumber);
@@ -63,7 +57,7 @@ internal sealed class VonageService : IVonageService
                 Ncco = ncco
             };
 
-            var response = await _vonageClient.VoiceClient.CreateCallAsync(callRequest);
+            var response = await _voiceClient.CreateCallAsync(callRequest);
 
             _logger.LogInformation("VonageService: Appel aura été initié avec un UUID {CallUuid}", response.Uuid);
 
