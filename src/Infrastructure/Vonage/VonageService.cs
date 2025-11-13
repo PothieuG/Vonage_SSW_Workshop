@@ -99,10 +99,7 @@ internal sealed class VonageService : IVonageService
         
         try
         {
-            var response = await _httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, transcriptionUrl)
-            {
-                Headers = {Authorization = new AuthenticationHeaderValue("Bearer", _tokenGenerator.GenerateToken(_credentials).GetSuccessUnsafe())},
-            }, cancellationToken);
+            var response = await GetFromUrlWithCredentials(transcriptionUrl, cancellationToken);
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var transcription = JsonSerializer.Deserialize<TranscriptionResult>(json);
             if (transcription is null)
@@ -121,6 +118,12 @@ internal sealed class VonageService : IVonageService
             return Error.Failure("Vonage.UnexpectedError", $"Erreur innattendu: {ex.Message}");
         }
     }
+
+    private async Task<HttpResponseMessage> GetFromUrlWithCredentials(string transcriptionUrl, CancellationToken cancellationToken) =>
+        await _httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, transcriptionUrl)
+        {
+            Headers = {Authorization = new AuthenticationHeaderValue("Bearer", _tokenGenerator.GenerateToken(_credentials).GetSuccessUnsafe())},
+        }, cancellationToken);
 
     public async Task<ErrorOr<CallInfo>> GetCallInfoByConversationUuidAsync(string conversationUuid, CancellationToken cancellationToken = default)
     {
@@ -187,13 +190,7 @@ internal sealed class VonageService : IVonageService
     {
         _logger.LogInformation("VonageService: Téléchargement du recording depuis {RecordingUrl}", recordingUrl);
 
-        var responseResult = await _authenticatedHttpClient.GetAuthenticatedAsync(recordingUrl, cancellationToken);
-
-        if (responseResult.IsError)
-            return responseResult.Errors;
-
-        var response = responseResult.Value;
-
+        var response = await GetFromUrlWithCredentials(recordingUrl, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Échec du téléchargement du recording: Status {StatusCode}", response.StatusCode);
