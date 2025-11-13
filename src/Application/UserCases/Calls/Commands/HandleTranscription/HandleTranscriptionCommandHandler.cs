@@ -28,8 +28,7 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
             webhookRequest.TranscriptionUrl,
             cancellationToken);
 
-        var transcriptionResult = downloadResult.Value;
-        var transcriptText = transcriptionResult.Channels[0].ExtractTranscript();
+        var transcriptText = downloadResult.Value;
 
         var callInfoObject = await _vonageService.GetCallInfoByConversationUuidAsync(webhookRequest.ConversationUuid, cancellationToken);
         var callInfo = new CallInfo(
