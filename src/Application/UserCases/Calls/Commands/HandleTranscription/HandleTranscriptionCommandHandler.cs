@@ -27,8 +27,7 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
             webhookRequest.TranscriptionUrl,
             cancellationToken);
 
-        var transcriptionResult = downloadResult.Value;
-        var transcriptText = transcriptionResult.Channels[0].ExtractTranscript();
+        var transcriptText = downloadResult.Value;
         _logger.LogInformation("Transcription: {TranscriptText}", transcriptText);
 
         return Result.Success;
