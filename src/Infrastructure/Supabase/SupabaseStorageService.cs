@@ -1,4 +1,5 @@
 using ErrorOr;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
@@ -28,7 +29,7 @@ internal sealed class SupabaseStorageService : ISupabaseStorageService
         _supabaseClient = new Client(_settings.ProjectUrl, _settings.ServiceRoleKey, options);
     }
 
-    public async Task<ErrorOr<string>> UploadTextAsync(
+    public async Task<ErrorOr<Unit>> UploadTextAsync(
         string content,
         string fileName,
         string folderPath,
@@ -48,10 +49,10 @@ internal sealed class SupabaseStorageService : ISupabaseStorageService
                 Upsert = true
             });
 
-        return fullPath;
+        return Unit.Value;
     }
 
-    public async Task<ErrorOr<string>> UploadAudioAsync(
+    public async Task<ErrorOr<Unit>> UploadAudioAsync(
         Stream audioStream,
         string fileName,
         string folderPath,
@@ -73,6 +74,6 @@ internal sealed class SupabaseStorageService : ISupabaseStorageService
                 Upsert = true
             });
 
-        return fullPath;
+        return Unit.Value;
     }
 }
