@@ -7,13 +7,11 @@ public interface ISupabaseStorageService
 {
     Task<ErrorOr<Unit>> UploadTextAsync(
         string content,
-        string fileName,
-        string folderPath,
+        string filePath,
         CancellationToken cancellationToken = default);
 
     Task<ErrorOr<Unit>> UploadAudioAsync(
         Stream audioStream,
-        string fileName,
-        string folderPath,
+        string filePath,
         CancellationToken cancellationToken = default);
 }

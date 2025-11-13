@@ -23,14 +23,9 @@ internal sealed class HandleRecordingCommandHandler : IRequestHandler<HandleReco
     public async Task<ErrorOr<Success>> Handle(HandleRecordingCommand request, CancellationToken cancellationToken)
     {
         var webhookRequest = request.Request;
-
         _logger.LogInformation("HandleRecordingCommandHandler: réception du recording callback pour la conversation {ConversationUuid}",
             webhookRequest.ConversationUuid);
-
-        var folderPath = $"{DateTime.UtcNow:yyyy-MM-dd}_{webhookRequest.ConversationUuid}";
-
         var recordingStreamResult = await _vonageService.DownloadRecordingAsync(webhookRequest.RecordingUrl, cancellationToken);
-
         if (recordingStreamResult.IsError)
         {
             _logger.LogError("Échec du téléchargement du recording: {Errors}", string.Join(", ", recordingStreamResult.Errors));
@@ -38,11 +33,8 @@ internal sealed class HandleRecordingCommandHandler : IRequestHandler<HandleReco
         }
 
         await using var recordingStream = recordingStreamResult.Value;
-
-        await _supabaseStorage.UploadAudioAsync(recordingStream, "audio.mp3", folderPath, cancellationToken);
-
+        await _supabaseStorage.UploadAudioAsync(recordingStream, webhookRequest.BuildAudioFilePath(), cancellationToken);
         _logger.LogInformation("Recording uploadé avec succès vers Supabase");
-
         return Result.Success;
     }
 }

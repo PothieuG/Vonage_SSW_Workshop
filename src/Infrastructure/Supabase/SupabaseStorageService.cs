@@ -31,19 +31,14 @@ internal sealed class SupabaseStorageService : ISupabaseStorageService
 
     public async Task<ErrorOr<Unit>> UploadTextAsync(
         string content,
-        string fileName,
-        string folderPath,
+        string filePath,
         CancellationToken cancellationToken = default)
     {
-        var fullPath = $"{folderPath}/{fileName}";
-
-        _logger.LogInformation("Upload texte vers Supabase: {Path}", fullPath);
-
+        _logger.LogInformation("Upload texte vers Supabase: {Path}", filePath);
         var bytes = Encoding.UTF8.GetBytes(content);
-
         await _supabaseClient.Storage
             .From(_settings.BucketName)
-            .Upload(bytes, fullPath, new global::Supabase.Storage.FileOptions
+            .Upload(bytes, filePath, new global::Supabase.Storage.FileOptions
             {
                 ContentType = "text/plain",
                 Upsert = true
@@ -54,21 +49,16 @@ internal sealed class SupabaseStorageService : ISupabaseStorageService
 
     public async Task<ErrorOr<Unit>> UploadAudioAsync(
         Stream audioStream,
-        string fileName,
-        string folderPath,
+        string filePath,
         CancellationToken cancellationToken = default)
     {
-        var fullPath = $"{folderPath}/{fileName}";
-
         await using var memoryStream = new MemoryStream();
         await audioStream.CopyToAsync(memoryStream, cancellationToken);
         var audioBytes = memoryStream.ToArray();
-
-        _logger.LogInformation("Upload audio vers Supabase: {Path} ({Size} bytes)", fullPath, audioBytes.Length);
-
+        _logger.LogInformation("Upload audio vers Supabase: {Path} ({Size} bytes)", filePath, audioBytes.Length);
         await _supabaseClient.Storage
             .From(_settings.BucketName)
-            .Upload(audioBytes, fullPath, new global::Supabase.Storage.FileOptions
+            .Upload(audioBytes, filePath, new global::Supabase.Storage.FileOptions
             {
                 ContentType = "audio/mpeg",
                 Upsert = true

@@ -21,4 +21,10 @@ public sealed record RecordingCallbackRequest
 
     [JsonPropertyName("size")]
     public int? Size { get; init; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public string BuildAudioFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{this.ConversationUuid}/audio.mp3";
 }
