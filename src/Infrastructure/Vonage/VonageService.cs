@@ -3,15 +3,16 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text;
 using System.Net.Http.Headers;
-using System.Text.Json;
 using Vonage;
 using Vonage.Messages.Sms;
 using Vonage.Request;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
+using Vonage.Common;
 using Vonage.Messages;
 using Vonage.Voice;
 using Vonage.Voice.Nccos;
 using Vonage.Voice.Nccos.Endpoints;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Vonage_SSW_Workshop.Infrastructure.Vonage;
 
@@ -21,7 +22,6 @@ internal sealed class VonageService : IVonageService
     private readonly HttpClient _httpClient;
     private readonly IMessagesClient _messagesClient;
     private readonly IVoiceClient _voiceClient;
-    private readonly ILogger<VonageService> _logger;
     private readonly ITokenGenerator _tokenGenerator;
     private readonly Credentials _credentials;
 
@@ -30,7 +30,6 @@ internal sealed class VonageService : IVonageService
         IHttpClientFactory httpClientFactory,
         IMessagesClient messagesClient,
         IVoiceClient voiceClient,
-        ILogger<VonageService> logger,
         ITokenGenerator tokenGenerator,
         Credentials credentials)
     {
@@ -38,151 +37,124 @@ internal sealed class VonageService : IVonageService
         _httpClient = httpClientFactory.CreateClient();
         _messagesClient = messagesClient;
         _voiceClient = voiceClient;
-        _logger = logger;
         _tokenGenerator = tokenGenerator;
         _credentials = credentials;
     }
     
     public async Task<string> InitiateCallAsync(string phoneNumber, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("VonageService - Appel depuis {FromNumber} vers {PhoneNumber}", _settings.FromNumber, phoneNumber);
+        var response = await _voiceClient.CreateCallAsync(BuildCallCommand(phoneNumber));
+        return response.Uuid;
+    }
 
-        try
+    private CallCommand BuildCallCommand(string phoneNumber) =>
+        new()
         {
-            var webhookBaseUrl = _settings.WebhookBaseUrl.TrimEnd('/');
-
-            var recordAction = new RecordAction
-            {
-                EndOnSilence = "3",
-                BeepStart = true,
-                Transcription = new RecordAction.TranscriptionSettings
-                {
-                    EventUrl = [$"{webhookBaseUrl}/api/calls/transcribed"],
-                    Language = "fr-FR"
-                }
-            };
-
-            var ncco = new Ncco(
+            To = [new PhoneEndpoint { Number = phoneNumber }],
+            From = new PhoneEndpoint { Number = _settings.FromNumber },
+            Ncco = new Ncco(
                 new TalkAction
                 {
                     Text = "Bonjour, veuillez laisser un message après le bip svp.",
                     Language = "fr-FR",
                     Style = 0
                 },
-                recordAction
-            );
+                new RecordAction
+                {
+                    EndOnSilence = "3",
+                    BeepStart = true,
+                    Transcription = new RecordAction.TranscriptionSettings
+                    {
+                        EventUrl = [$"{ _settings.WebhookBaseUrl.TrimEnd('/')}/api/calls/transcribed"],
+                        Language = "fr-FR"
+                    }
+                }
+            )
+        };
 
-            var callRequest = new CallCommand
-            {
-                To = [new PhoneEndpoint { Number = phoneNumber }],
-                From = new PhoneEndpoint { Number = _settings.FromNumber },
-                Ncco = ncco
-            };
+    public async Task<ErrorOr<string>> DownloadTranscriptionAsync(string transcriptionUrl, CancellationToken cancellationToken = default) => 
+        await DownloadTranscript(transcriptionUrl, cancellationToken).Then(DeserializeTranscript);
 
-            var response = await _voiceClient.CreateCallAsync(callRequest);
-
-            _logger.LogInformation("VonageService: Appel aura été initié avec un UUID {CallUuid}", response.Uuid);
-
-            return response.Uuid;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "VonageService: Echec de l'appel vers le numéro {PhoneNumber}", phoneNumber);
-            throw;
-        }
-    }
-
-    public async Task<ErrorOr<string>> DownloadTranscriptionAsync(string transcriptionUrl, CancellationToken cancellationToken = default)
+    private async Task<ErrorOr<string>> DownloadTranscript(string transcriptionUrl, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Téléchargement de la transcription à l'url {TranscriptionUrl}...", transcriptionUrl);
-        
         try
         {
             var response = await _httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, transcriptionUrl)
             {
                 Headers = {Authorization = new AuthenticationHeaderValue("Bearer", _tokenGenerator.GenerateToken(_credentials).GetSuccessUnsafe())},
             }, cancellationToken);
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            var transcription = JsonSerializer.Deserialize<TranscriptionResult>(json);
-            if (transcription is null)
-            {
-                _logger.LogError("Echec lors de la désérialisation du JSON de transcription depuis {TranscriptionUrl}", transcriptionUrl);
-                return Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
-            }
-
-            _logger.LogInformation("Téléchargement de la transcription réussi depuis {TranscriptionUrl}", transcriptionUrl);
-
-            return transcription.ExtractTranscripts().FirstOrDefault() ?? string.Empty;
+            return await response.Content.ReadAsStringAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogError(ex, "VonageService: Erreur lors de la récupération du transcript à l'url - {TranscriptionUrl}", transcriptionUrl);
-            return Error.Failure("Vonage.UnexpectedError", $"Erreur innattendu: {ex.Message}");
+            return Error.Failure("Vonage.HttpRequestFailed", "Echec lors de l'envoi d'une requête HTTP.");
         }
     }
 
-    public async Task<ErrorOr<CallInfo>> GetCallInfoByConversationUuidAsync(string conversationUuid, CancellationToken cancellationToken = default)
+    private static ErrorOr<string> DeserializeTranscript(string json)
     {
-        _logger.LogInformation("VonageService: Récupération des informations pour la conversation - {ConversationUuid}", conversationUuid);
-
         try
         {
+            var transcription = JsonSerializer.Deserialize<TranscriptionResult>(json);
+            return transcription?.ExtractTranscripts().FirstOrDefault() ?? (ErrorOr<string>)GetSerializationFailure();
+        }
+        catch
+        {
+          return GetSerializationFailure();
+        }
+    }
 
-            var searchFilter = new CallSearchFilter
-            {
-                ConversationUuid = conversationUuid
-            };
+    public async Task<ErrorOr<CallInfo>> GetCallInfoByConversationUuidAsync(string conversationUuid, CancellationToken cancellationToken = default) => 
+        await GetCalls(conversationUuid).Then(FindCall).Then(call => call.ToCallInfo());
 
-            var callsResponse = await _voiceClient.GetCallsAsync(searchFilter);
-            var call = callsResponse.Embedded.Calls.FirstOrDefault();
-
-            if (call is null)
-            {
-                _logger.LogWarning(
-                    "VonageService: Aucun appel trouvé pour la conversation {ConversationUuid}",
-                    conversationUuid);
-
-                return Error.Failure(
-                    "Vonage.CallNotFound",
-                    "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
-            }
-
-            var callInfo = new CallInfo(call.From.Number, call.To.Number, call.Duration);
-
-            return callInfo;
+    private async Task<ErrorOr<PageResponse<CallList>>> GetCalls(string conversationUuid)
+    {
+        try
+        {
+            return await _voiceClient.GetCallsAsync(new CallSearchFilter { ConversationUuid = conversationUuid });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erreur lors de la récuparation des informations de la conversation {ConversationUuid}", conversationUuid);
             return Error.Failure("Vonage.GetCallFailed", $"Erreur lors de la récupération des informations de la conversation: {ex.Message}");
         }
     }
 
-    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken)
+    private ErrorOr<CallRecord> FindCall(PageResponse<CallList> calls) =>
+        calls.Embedded.Calls.FirstOrDefault() ?? (ErrorOr<CallRecord>)Error.Failure(
+            "Vonage.CallNotFound",
+            "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
+
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken) => 
+        await SendSms( BuildSmsRequest(callInfo, transcript))
+            .Then(message => message.MessageUuid.ToString());
+    
+    private async Task<ErrorOr<MessagesResponse>> SendSms(SmsRequest smsRequest)
     {
         try
         {
-            _logger.LogInformation("Envoie d'un SMS au numéro {PhoneNumber}", callInfo.ToNumber);
-            var smsMessage = BuildSmsMessage(callInfo.ToNumber, callInfo.DurationSeconds, transcript);
-
-            var smsRequest = new SmsRequest
-            {
-                From = callInfo.FromNumber,
-                To = callInfo.ToNumber,
-                Text = smsMessage
-            };
-
-            var response = await _messagesClient.SendAsync(smsRequest);
-            return response.MessageUuid.ToString();
+            return await _messagesClient.SendAsync(smsRequest);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erreur lors de l'envoie du SMS vers {ToNumber}", callInfo.ToNumber);
             return Error.Failure("Vonage.SmsSendFailed", $"Erreur lors de l'envoie du SMS: {ex.Message}");
         }
     }
+
+    private static Error GetSerializationFailure() => 
+        Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
     
-    private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText)
+    private static SmsRequest BuildSmsRequest(CallInfo callInfo, string transcript)
+    {
+        var smsRequest = new SmsRequest
+        {
+            From = callInfo.FromNumber,
+            To = callInfo.ToNumber,
+            Text = BuildSmsContent(callInfo.ToNumber, callInfo.DurationSeconds, transcript)
+        };
+        return smsRequest;
+    }
+    
+    private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText)
     {
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("📞 Nouveau message vocal");
@@ -194,4 +166,9 @@ internal sealed class VonageService : IVonageService
         messageBuilder.AppendLine("Bonne journée!");
         return messageBuilder.ToString();
     }
+}
+
+public static class CallRecordExtensions
+{
+    public static CallInfo ToCallInfo(this CallRecord call) => new CallInfo(call.From.Number, call.To.Number, call.Duration);
 }
