@@ -1,5 +1,4 @@
 using ErrorOr;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text;
 using System.Net.Http.Headers;
@@ -124,20 +123,15 @@ internal sealed class VonageService : IVonageService
             "Vonage.CallNotFound",
             "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
 
-    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken)
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken) => 
+        await SendSms( BuildSmsRequest(callInfo, transcript))
+            .Then(message => message.MessageUuid.ToString());
+    
+    private async Task<ErrorOr<MessagesResponse>> SendSms(SmsRequest smsRequest)
     {
         try
         {
-            var smsMessage = BuildSmsMessage(callInfo.ToNumber, callInfo.DurationSeconds, transcript);
-            var smsRequest = new SmsRequest
-            {
-                From = callInfo.FromNumber,
-                To = callInfo.ToNumber,
-                Text = smsMessage
-            };
-
-            var response = await _messagesClient.SendAsync(smsRequest);
-            return response.MessageUuid.ToString();
+            return await _messagesClient.SendAsync(smsRequest);
         }
         catch (Exception ex)
         {
@@ -148,7 +142,18 @@ internal sealed class VonageService : IVonageService
     private static Error GetSerializationFailure() => 
         Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
     
-    private static string BuildSmsMessage(string fromNumber, string durationSeconds, string transcriptText)
+    private static SmsRequest BuildSmsRequest(CallInfo callInfo, string transcript)
+    {
+        var smsRequest = new SmsRequest
+        {
+            From = callInfo.FromNumber,
+            To = callInfo.ToNumber,
+            Text = BuildSmsContent(callInfo.ToNumber, callInfo.DurationSeconds, transcript)
+        };
+        return smsRequest;
+    }
+    
+    private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText)
     {
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("📞 Nouveau message vocal");
