@@ -19,17 +19,11 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
 
     public async Task<ErrorOr<Success>> Handle(HandleTranscriptionCommand request, CancellationToken cancellationToken)
     {
-        var webhookRequest = request.Request;
-
-        _logger.LogInformation("HandleTranscriptionCommandHandler: réception du transcription callback pour la conversation {ConversationUuid}", webhookRequest.ConversationUuid);
-
         var downloadResult = await _vonageService.DownloadTranscriptionAsync(
-            webhookRequest.TranscriptionUrl,
+            request.Request.TranscriptionUrl,
             cancellationToken);
-
         var transcriptText = downloadResult.Value;
         _logger.LogInformation("Transcription: {TranscriptText}", transcriptText);
-
         return Result.Success;
     }
 
