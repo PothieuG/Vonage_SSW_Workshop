@@ -1,58 +1,40 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Net.Mail;
 using System.Text;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Application.UseCases.Calls.Commands.HandleTranscription;
 
-internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<HandleTranscriptionCommand, ErrorOr<Success>>
+internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageService, IMcpService mcpService, ISupabaseStorageService storage)
+    : IRequestHandler<HandleTranscriptionCommand, ErrorOr<Success>>
 {
-    private readonly IVonageService _vonageService;
-    private readonly IMcpService _mcpService;
-    private readonly ISupabaseStorageService _supabaseStorage;
-    private readonly ILogger<HandleTranscriptionCommandHandler> _logger;
-
-    public HandleTranscriptionCommandHandler(
-        IVonageService vonageService,
-        IMcpService mcpService,
-        ISupabaseStorageService supabaseStorage,
-        ILogger<HandleTranscriptionCommandHandler> logger)
-    {
-        _vonageService = vonageService;
-        _mcpService = mcpService;
-        _supabaseStorage = supabaseStorage;
-        _logger = logger;
-    }
-
     public async Task<ErrorOr<Success>> Handle(HandleTranscriptionCommand request, CancellationToken cancellationToken)
     {
-        var webhookRequest = request.Request;
-        _logger.LogInformation("HandleTranscriptionCommandHandler: réception du transcription callback pour la conversation {ConversationUuid}", webhookRequest.ConversationUuid);
-        var downloadResult = await _vonageService.DownloadTranscriptionAsync(
-            webhookRequest.TranscriptionUrl,
-            cancellationToken);
-        var transcriptText = downloadResult.Value;
-        var summarizedTranscriptWitMcpResult = await _mcpService.ProcessTranscriptWithMcpAsync(transcriptText, cancellationToken);
-        var summarizedTranscriptText = summarizedTranscriptWitMcpResult.Value;
-        _logger.LogInformation("Traitement MCP terminé avec succès - {SummarizedTranscriptText}", summarizedTranscriptText);
-        var callInfoObject = await _vonageService.GetCallInfoByConversationUuidAsync(webhookRequest.ConversationUuid, cancellationToken);
-        var callInfo = callInfoObject.Value;
-        await _supabaseStorage.UploadTextAsync(transcriptText, webhookRequest.BuildTranscriptionFilePath(), cancellationToken);
-        await _supabaseStorage.UploadTextAsync(summarizedTranscriptText, webhookRequest.BuildResumeFilePath(), cancellationToken);
-        var smsResult = await _vonageService.SendSmsAsync(
-            callInfo,
-            transcriptText,
-            summarizedTranscriptText,
-            cancellationToken);
-        if (smsResult.IsError)
-        {
-            _logger.LogError("HandleTranscriptionCommandHandler: échec de l'envoie du SMS pour la conversation {ConversationUuid}: {Errors}",
-                webhookRequest.ConversationUuid,
-                string.Join(", ", smsResult.Errors));
-            return smsResult.Errors;
-        }
+        var transcriptionDetails = await GetTranscriptionDetails(request, cancellationToken)
+            .ThenDoAsync(transcription => UploadToCloudStorage(transcription, request.Request, cancellationToken));
+        var call = await vonageService.GetCallInfoByConversationUuidAsync(request.Request.ConversationUuid, cancellationToken);
+        var smsResult = await MergeCallAndTranscription(transcriptionDetails, call)
+            .ThenAsync(smsDetails => vonageService.SendSmsAsync(smsDetails.Call, smsDetails.Transcript.RawTranscript, smsDetails.Transcript.SummarizedTranscript, cancellationToken));
+        return smsResult.IsError ? smsResult.Errors : Result.Success;
+    }
 
-        return Result.Success;
+    private async Task UploadToCloudStorage(TranscriptionDetails transcription, TranscriptionCallbackRequest request,  CancellationToken cancellationToken = default)
+    {
+        await storage.UploadTextAsync(transcription.RawTranscript, request.BuildTranscriptionFilePath(), cancellationToken);
+        await storage.UploadTextAsync(transcription.SummarizedTranscript, request.BuildResumeFilePath(), cancellationToken);
+    }
+
+    private static ErrorOr<SmsInfo> MergeCallAndTranscription(ErrorOr<TranscriptionDetails> transcriptionDetails, ErrorOr<CallInfo> call) =>
+        transcriptionDetails .Merge<TranscriptionDetails, CallInfo, SmsInfo>(call, (transcription, callInformation) =>  new SmsInfo(callInformation, transcription));
+
+    private async Task<ErrorOr<TranscriptionDetails>> GetTranscriptionDetails(HandleTranscriptionCommand request, CancellationToken cancellationToken)
+    {
+        var downloadedTranscription = await vonageService.DownloadTranscriptionAsync(
+            request.Request.TranscriptionUrl,
+            cancellationToken);
+        var summarizedTranscript = await downloadedTranscription.ThenAsync(transcript => mcpService.ProcessTranscriptWithMcpAsync(transcript, cancellationToken));
+        return downloadedTranscription.Merge<string, string, TranscriptionDetails>(summarizedTranscript, (t, s) => new TranscriptionDetails(t, s));
     }
 
     internal sealed class HandleTranscriptionCommandValidator : AbstractValidator<HandleTranscriptionCommand>
@@ -64,4 +46,20 @@ internal sealed class HandleTranscriptionCommandHandler : IRequestHandler<Handle
                 .WithMessage("L'URL de transcription est requise.");
         }
     }
+}
+
+public record TranscriptionDetails(string RawTranscript, string SummarizedTranscript);
+public record SmsInfo(CallInfo Call, TranscriptionDetails Transcript);
+
+public static class ErrorOrExtensions
+{
+    public static ErrorOr<TDestination> Merge<TSource1, TSource2, TDestination>(this ErrorOr<TSource1> source1,
+        ErrorOr<TSource2> source2, Func<TSource1, TSource2, ErrorOr<TDestination>> merge) =>
+        !source1.IsError && !source2.IsError
+            ? merge(source1.Value, source2.Value)
+            : FetchError<TSource1, TSource2, TDestination>(source1, source2);
+
+    private static ErrorOr<TDestination> FetchError<TSource1, TSource2, TDestination>(this ErrorOr<TSource1> source1,
+        ErrorOr<TSource2> source2) =>
+        source1.IsError ? source1.FirstError : source2.FirstError;
 }
