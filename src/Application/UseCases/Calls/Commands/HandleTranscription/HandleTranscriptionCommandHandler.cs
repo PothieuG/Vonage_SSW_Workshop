@@ -19,7 +19,7 @@ internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageSer
     }
 
     private static ErrorOr<SmsInfo> MergeCallAndTranscription(ErrorOr<TranscriptionDetails> transcriptionDetails, ErrorOr<CallInfo> call) =>
-        transcriptionDetails .Merge<TranscriptionDetails, CallInfo, SmsInfo>(call, (transcription, callInformation) =>  new SmsInfo(callInformation, transcription));
+        transcriptionDetails.Merge<TranscriptionDetails, CallInfo, SmsInfo>(call, (transcription, callInformation) => new SmsInfo(callInformation, transcription));
 
     private async Task<ErrorOr<TranscriptionDetails>> GetTranscriptionDetails(HandleTranscriptionCommand request, CancellationToken cancellationToken)
     {

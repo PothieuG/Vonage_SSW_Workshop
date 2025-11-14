@@ -1,16 +1,16 @@
 using ErrorOr;
 using Microsoft.Extensions.Options;
-using System.Text;
 using System.Net.Http.Headers;
+using System.Text;
 using Vonage;
-using Vonage.Messages.Sms;
-using Vonage.Request;
-using Vonage_SSW_Workshop.Application.Common.Interfaces;
 using Vonage.Common;
 using Vonage.Messages;
+using Vonage.Messages.Sms;
+using Vonage.Request;
 using Vonage.Voice;
 using Vonage.Voice.Nccos;
 using Vonage.Voice.Nccos.Endpoints;
+using Vonage_SSW_Workshop.Application.Common.Interfaces;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Vonage_SSW_Workshop.Infrastructure.Vonage;
@@ -39,7 +39,7 @@ internal sealed class VonageService : IVonageService
         _tokenGenerator = tokenGenerator;
         _credentials = credentials;
     }
-    
+
     public async Task<string> InitiateCallAsync(string phoneNumber, CancellationToken cancellationToken = default)
     {
         var response = await _voiceClient.CreateCallAsync(BuildCallCommand(phoneNumber));
@@ -64,14 +64,14 @@ internal sealed class VonageService : IVonageService
                     BeepStart = true,
                     Transcription = new RecordAction.TranscriptionSettings
                     {
-                        EventUrl = [$"{ _settings.WebhookBaseUrl.TrimEnd('/')}/api/calls/transcribed"],
+                        EventUrl = [$"{_settings.WebhookBaseUrl.TrimEnd('/')}/api/calls/transcribed"],
                         Language = "fr-FR"
                     }
                 }
             )
         };
 
-    public async Task<ErrorOr<string>> DownloadTranscriptionAsync(string transcriptionUrl, CancellationToken cancellationToken = default) => 
+    public async Task<ErrorOr<string>> DownloadTranscriptionAsync(string transcriptionUrl, CancellationToken cancellationToken = default) =>
         await DownloadTranscript(transcriptionUrl, cancellationToken).Then(DeserializeTranscript);
 
     private async Task<ErrorOr<string>> DownloadTranscript(string transcriptionUrl, CancellationToken cancellationToken = default)
@@ -80,7 +80,7 @@ internal sealed class VonageService : IVonageService
         {
             var response = await _httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, transcriptionUrl)
             {
-                Headers = {Authorization = new AuthenticationHeaderValue("Bearer", _tokenGenerator.GenerateToken(_credentials).GetSuccessUnsafe())},
+                Headers = { Authorization = new AuthenticationHeaderValue("Bearer", _tokenGenerator.GenerateToken(_credentials).GetSuccessUnsafe()) },
             }, cancellationToken);
             return await response.Content.ReadAsStringAsync(cancellationToken);
         }
@@ -99,11 +99,11 @@ internal sealed class VonageService : IVonageService
         }
         catch
         {
-          return GetSerializationFailure();
+            return GetSerializationFailure();
         }
     }
 
-    public async Task<ErrorOr<CallInfo>> GetCallInfoByConversationUuidAsync(string conversationUuid, CancellationToken cancellationToken = default) => 
+    public async Task<ErrorOr<CallInfo>> GetCallInfoByConversationUuidAsync(string conversationUuid, CancellationToken cancellationToken = default) =>
         await GetCalls(conversationUuid).Then(FindCall).Then(call => call.ToCallInfo());
 
     private async Task<ErrorOr<PageResponse<CallList>>> GetCalls(string conversationUuid)
@@ -123,8 +123,8 @@ internal sealed class VonageService : IVonageService
             "Vonage.CallNotFound",
             "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
 
-    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, CancellationToken cancellationToken) => 
-        await SendSms( BuildSmsRequest(callInfo, transcript, summarizedTranscriptText))
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, CancellationToken cancellationToken) =>
+        await SendSms(BuildSmsRequest(callInfo, transcript, summarizedTranscriptText))
             .Then(message => message.MessageUuid.ToString());
 
     private async Task<ErrorOr<MessagesResponse>> SendSms(SmsRequest smsRequest)
@@ -150,9 +150,9 @@ internal sealed class VonageService : IVonageService
         return smsRequest;
     }
 
-    private static Error GetSerializationFailure() => 
+    private static Error GetSerializationFailure() =>
         Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
-    
+
     private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText)
     {
         var messageBuilder = new StringBuilder();

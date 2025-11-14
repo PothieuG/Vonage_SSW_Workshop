@@ -1,7 +1,7 @@
-using System.Text.Json;
-using System.Net.Http.Json;
 using ErrorOr;
 using Microsoft.Extensions.Logging;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Infrastructure.MCP;
