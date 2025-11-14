@@ -11,13 +11,8 @@ internal sealed class InitiateCallCommandHandler(
     ILogger<InitiateCallCommandHandler> logger)
     : IRequestHandler<InitiateCallCommand, ErrorOr<string>>
 {
-    public async Task<ErrorOr<string>> Handle(InitiateCallCommand request, CancellationToken cancellationToken)
-    {
-        logger.LogInformation("InitiateCallCommand: appel vers le numéro {PhoneNumber}", request.CallRequest);
-        var callId = await vonageService.InitiateCallAsync(request.CallRequest, cancellationToken);
-        logger.LogInformation("InitiateCallCommand: appel avec succès avec ID {CallId}", callId);
-        return callId;
-    }
+    public async Task<ErrorOr<string>> Handle(InitiateCallCommand request, CancellationToken cancellationToken) => 
+        await vonageService.InitiateCallAsync(request.CallRequest, cancellationToken);
 }
 
 internal sealed class InitiateCallCommandValidator : AbstractValidator<InitiateCallCommand>
