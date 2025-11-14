@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Options;
 using Vonage;
-using Vonage.Request;
-using Vonage_SSW_Workshop.Application.Common.Interfaces;
 using Vonage.Messages;
+using Vonage.Request;
 using Vonage.Voice;
+using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Infrastructure.Vonage;
 
