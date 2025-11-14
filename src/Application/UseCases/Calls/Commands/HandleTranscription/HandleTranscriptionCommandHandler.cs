@@ -19,14 +19,14 @@ internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageSer
         return smsResult.IsError ? smsResult.Errors : Result.Success;
     }
 
-    private async Task UploadToCloudStorage(TranscriptionDetails transcription, TranscriptionCallbackRequest request,  CancellationToken cancellationToken = default)
+    private async Task UploadToCloudStorage(TranscriptionDetails transcription, TranscriptionCallbackRequest request, CancellationToken cancellationToken = default)
     {
         await storage.UploadTextAsync(transcription.RawTranscript, request.BuildTranscriptionFilePath(), cancellationToken);
         await storage.UploadTextAsync(transcription.SummarizedTranscript, request.BuildResumeFilePath(), cancellationToken);
     }
 
     private static ErrorOr<SmsInfo> MergeCallAndTranscription(ErrorOr<TranscriptionDetails> transcriptionDetails, ErrorOr<CallInfo> call) =>
-        transcriptionDetails .Merge<TranscriptionDetails, CallInfo, SmsInfo>(call, (transcription, callInformation) =>  new SmsInfo(callInformation, transcription));
+        transcriptionDetails.Merge<TranscriptionDetails, CallInfo, SmsInfo>(call, (transcription, callInformation) => new SmsInfo(callInformation, transcription));
 
     private async Task<ErrorOr<TranscriptionDetails>> GetTranscriptionDetails(HandleTranscriptionCommand request, CancellationToken cancellationToken)
     {
