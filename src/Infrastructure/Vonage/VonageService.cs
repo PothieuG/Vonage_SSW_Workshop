@@ -17,56 +17,42 @@ internal sealed class VonageService : IVonageService
     private readonly HttpClient _httpClient;
     private readonly IMessagesClient _messagesClient;
     private readonly IVoiceClient _voiceClient;
-    private readonly ILogger<VonageService> _logger;
 
     public VonageService(
         IOptions<WorkshopSettings> settings,
         IHttpClientFactory httpClientFactory,
         IMessagesClient messagesClient,
-        IVoiceClient voiceClient,
-        ILogger<VonageService> logger)
+        IVoiceClient voiceClient)
     {
         _settings = settings.Value;
         _httpClient = httpClientFactory.CreateClient();
         _messagesClient = messagesClient;
         _voiceClient = voiceClient;
-        _logger = logger;
     }
     
     public async Task<string> InitiateCallAsync(string phoneNumber, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("VonageService - Appel depuis {FromNumber} vers {PhoneNumber}", _settings.FromNumber, phoneNumber);
+        var webhookBaseUrl = _settings.WebhookBaseUrl.TrimEnd('/');
+        var response = await _voiceClient.CreateCallAsync(BuildCallCommand(phoneNumber));
+        return response.Uuid;
+    }
 
-        try
-        {
-            var webhookBaseUrl = _settings.WebhookBaseUrl.TrimEnd('/');
-
-            var ncco = new Ncco(
-                new TalkAction
-                {
-                    Text = "Bonjour, veuillez laisser un message après le bip svp.",
-                    Language = "fr-FR",
-                    Style = 0
-                }
-            );
-
-            var callRequest = new CallCommand
+    private CallCommand BuildCallCommand(string phoneNumber)
+    {
+        var ncco = new Ncco(
+            new TalkAction
             {
-                To = [new PhoneEndpoint { Number = phoneNumber }],
-                From = new PhoneEndpoint { Number = _settings.FromNumber },
-                Ncco = ncco
-            };
-
-            var response = await _voiceClient.CreateCallAsync(callRequest);
-
-            _logger.LogInformation("VonageService: Appel aura été initié avec un UUID {CallUuid}", response.Uuid);
-
-            return response.Uuid;
-        }
-        catch (Exception ex)
+                Text = "Bonjour, veuillez laisser un message après le bip svp.",
+                Language = "fr-FR",
+                Style = 0
+            }
+        );
+        var callRequest = new CallCommand
         {
-            _logger.LogError(ex, "VonageService: Echec de l'appel vers le numéro {PhoneNumber}", phoneNumber);
-            throw;
-        }
+            To = [new PhoneEndpoint { Number = phoneNumber }],
+            From = new PhoneEndpoint { Number = _settings.FromNumber },
+            Ncco = ncco
+        };
+        return callRequest;
     }
 }
