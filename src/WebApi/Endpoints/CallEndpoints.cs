@@ -29,7 +29,7 @@ public static class CallEndpoints
             .MapPost("/transcribed", (
                 TranscriptionCallbackRequest request,
                 ILogger<Program> logger,
-                IServiceProvider serviceProvider) => 
+                IServiceProvider serviceProvider) =>
             {
                 logger.LogInformation(
                     "Réception du 'Transcription webhook' pour la conversation {ConversationUuid}",
