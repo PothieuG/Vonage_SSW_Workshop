@@ -11,7 +11,7 @@ internal sealed class InitiateCallCommandHandler(
     ILogger<InitiateCallCommandHandler> logger)
     : IRequestHandler<InitiateCallCommand, ErrorOr<string>>
 {
-    public async Task<ErrorOr<string>> Handle(InitiateCallCommand request, CancellationToken cancellationToken) => 
+    public async Task<ErrorOr<string>> Handle(InitiateCallCommand request, CancellationToken cancellationToken) =>
         await vonageService.InitiateCallAsync(request.CallRequest, cancellationToken);
 }
 

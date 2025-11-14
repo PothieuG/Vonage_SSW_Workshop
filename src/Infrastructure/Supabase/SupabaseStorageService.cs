@@ -2,9 +2,9 @@ using ErrorOr;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Vonage_SSW_Workshop.Application.Common.Interfaces;
 using Supabase;
 using System.Text;
+using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Infrastructure.Supabase;
 

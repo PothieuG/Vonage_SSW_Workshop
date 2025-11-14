@@ -26,5 +26,5 @@ public sealed record RecordingCallbackRequest
     /// 
     /// </summary>
     /// <returns></returns>
-    public string BuildAudioFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{this.ConversationUuid}/audio.mp3";
+    public string BuildAudioFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/audio.mp3";
 }

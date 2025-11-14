@@ -42,17 +42,17 @@ public sealed record TranscriptionCallbackRequest
     /// 
     /// </summary>
     /// <returns></returns>
-    public string BuildTranscriptionFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{this.ConversationUuid}/transcription.txt";
-    
+    public string BuildTranscriptionFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/transcription.txt";
+
     /// <summary>
     /// 
     /// </summary>
     /// <returns></returns>
-    public string BuildResumeFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{this.ConversationUuid}/resume.txt";
-    
+    public string BuildResumeFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/resume.txt";
+
     /// <summary>
     /// 
     /// </summary>
     /// <returns></returns>
-    public string BuildAudioFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{this.ConversationUuid}/audio.mp3";
+    public string BuildAudioFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/audio.mp3";
 }

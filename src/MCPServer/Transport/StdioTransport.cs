@@ -18,7 +18,7 @@ public class StdioTransport
         Console.SetOut(Console.Error);
 
         Console.WriteLine("[MCP Server] Mode STDIO démarré");
-        
+
         while (true)
         {
             using var stdin = new StreamReader(Console.OpenStandardInput());
