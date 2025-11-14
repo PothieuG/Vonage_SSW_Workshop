@@ -2,4 +2,4 @@
 
 Console.WriteLine("MCP Server démarré!");
 
-var ollama = new OllamaService("http://localhost:11434", "gemma3:4b");
+var _ = new OllamaService("http://localhost:11434", "gemma3:4b");
