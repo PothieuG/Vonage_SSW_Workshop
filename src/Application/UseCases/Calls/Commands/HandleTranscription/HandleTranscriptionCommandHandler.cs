@@ -16,7 +16,7 @@ internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageSer
             cancellationToken);
         var call = await vonageService.GetCallInfoByConversationUuidAsync(request.Request.ConversationUuid, cancellationToken);
         var smsResult = await downloadedTranscription
-            .Merge<string, CallInfo, SmsInfo>(call, (transcription, callInformation) =>  new SmsInfo(callInformation, transcription))
+            .Merge<string, CallInfo, SmsInfo>(call, (transcription, callInformation) => new SmsInfo(callInformation, transcription))
             .ThenAsync(sms => vonageService.SendSmsAsync(sms.Call, sms.Transcript, cancellationToken));
         return smsResult.IsError ? smsResult.Errors : Result.Success;
     }

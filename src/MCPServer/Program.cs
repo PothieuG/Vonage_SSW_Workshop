@@ -3,7 +3,7 @@ using MCPServer.Transport;
 
 Console.WriteLine("MCP Server démarré!");
 
-var commandLineArgs = Environment.GetCommandLineArgs();
+var _ = Environment.GetCommandLineArgs();
 
 var ollama = new OllamaService("http://localhost:11434", "gemma3:4b");
 var tools = new ToolsService(ollama);
