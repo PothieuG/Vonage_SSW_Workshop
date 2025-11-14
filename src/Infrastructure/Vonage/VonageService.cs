@@ -2,12 +2,12 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Vonage;
-using Vonage.Request;
-using Vonage_SSW_Workshop.Application.Common.Interfaces;
 using Vonage.Messages;
+using Vonage.Request;
 using Vonage.Voice;
 using Vonage.Voice.Nccos;
 using Vonage.Voice.Nccos.Endpoints;
+using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Infrastructure.Vonage;
 
@@ -29,10 +29,10 @@ internal sealed class VonageService : IVonageService
         _messagesClient = messagesClient;
         _voiceClient = voiceClient;
     }
-    
+
     public async Task<string> InitiateCallAsync(string phoneNumber, CancellationToken cancellationToken = default)
     {
-        var webhookBaseUrl = _settings.WebhookBaseUrl.TrimEnd('/');
+        _ = _settings.WebhookBaseUrl.TrimEnd('/');
         var response = await _voiceClient.CreateCallAsync(BuildCallCommand(phoneNumber));
         return response.Uuid;
     }
