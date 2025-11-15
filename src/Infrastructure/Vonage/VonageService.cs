@@ -2,14 +2,17 @@ using ErrorOr;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
-using System.Text.Json;
+using System.Text;
 using Vonage;
+using Vonage.Common;
 using Vonage.Messages;
+using Vonage.Messages.Sms;
 using Vonage.Request;
 using Vonage.Voice;
 using Vonage.Voice.Nccos;
 using Vonage.Voice.Nccos.Endpoints;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Vonage_SSW_Workshop.Infrastructure.Vonage;
 
@@ -101,6 +104,71 @@ internal sealed class VonageService : IVonageService
         }
     }
 
+    public async Task<ErrorOr<CallInfo>> GetCallInfoByConversationUuidAsync(string conversationUuid, CancellationToken cancellationToken = default) =>
+        await GetCalls(conversationUuid).Then(FindCall).Then(call => call.ToCallInfo());
+
+    private async Task<ErrorOr<PageResponse<CallList>>> GetCalls(string conversationUuid)
+    {
+        try
+        {
+            return await _voiceClient.GetCallsAsync(new CallSearchFilter { ConversationUuid = conversationUuid });
+        }
+        catch (Exception ex)
+        {
+            return Error.Failure("Vonage.GetCallFailed", $"Erreur lors de la récupération des informations de la conversation: {ex.Message}");
+        }
+    }
+
+    private ErrorOr<CallRecord> FindCall(PageResponse<CallList> calls) =>
+        calls.Embedded.Calls.FirstOrDefault() ?? (ErrorOr<CallRecord>)Error.Failure(
+            "Vonage.CallNotFound",
+            "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
+
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken) =>
+        await SendSms(BuildSmsRequest(callInfo, transcript))
+            .Then(message => message.MessageUuid.ToString());
+
+    private async Task<ErrorOr<MessagesResponse>> SendSms(SmsRequest smsRequest)
+    {
+        try
+        {
+            return await _messagesClient.SendAsync(smsRequest);
+        }
+        catch (Exception ex)
+        {
+            return Error.Failure("Vonage.SmsSendFailed", $"Erreur lors de l'envoie du SMS: {ex.Message}");
+        }
+    }
+
     private static Error GetSerializationFailure() =>
         Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
+
+    private static SmsRequest BuildSmsRequest(CallInfo callInfo, string transcript)
+    {
+        var smsRequest = new SmsRequest
+        {
+            From = callInfo.FromNumber,
+            To = callInfo.ToNumber,
+            Text = BuildSmsContent(callInfo.ToNumber, callInfo.DurationSeconds, transcript)
+        };
+        return smsRequest;
+    }
+
+    private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText)
+    {
+        var messageBuilder = new StringBuilder();
+        messageBuilder.AppendLine("📞 Nouveau message vocal");
+        messageBuilder.AppendLine("----------------------");
+        messageBuilder.AppendLine($"De: {fromNumber}");
+        messageBuilder.AppendLine($"Durée: {durationSeconds}s");
+        messageBuilder.AppendLine($"🗒️ Transcription: {transcriptText}");
+        messageBuilder.AppendLine("----------------------");
+        messageBuilder.AppendLine("Bonne journée!");
+        return messageBuilder.ToString();
+    }
+}
+
+public static class CallRecordExtensions
+{
+    public static CallInfo ToCallInfo(this CallRecord call) => new CallInfo(call.From.Number, call.To.Number, call.Duration);
 }
