@@ -6,19 +6,28 @@ using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Application.UseCases.Calls.Commands.HandleTranscription;
 
-internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageService)
+internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageService, IMcpService mcpService)
     : IRequestHandler<HandleTranscriptionCommand, ErrorOr<Success>>
 {
     public async Task<ErrorOr<Success>> Handle(HandleTranscriptionCommand request, CancellationToken cancellationToken)
     {
+        var transcriptionDetails = await GetTranscriptionDetails(request, cancellationToken);
+        var call = await vonageService.GetCallInfoByConversationUuidAsync(request.Request.ConversationUuid, cancellationToken);
+        var smsResult = await MergeCallAndTranscription(transcriptionDetails, call)
+            .ThenAsync(smsDetails => vonageService.SendSmsAsync(smsDetails.Call, smsDetails.Transcript.RawTranscript, smsDetails.Transcript.SummarizedTranscript, cancellationToken));
+        return smsResult.IsError ? smsResult.Errors : Result.Success;
+    }
+
+    private static ErrorOr<SmsInfo> MergeCallAndTranscription(ErrorOr<TranscriptionDetails> transcriptionDetails, ErrorOr<CallInfo> call) =>
+        transcriptionDetails.Merge<TranscriptionDetails, CallInfo, SmsInfo>(call, (transcription, callInformation) => new SmsInfo(callInformation, transcription));
+
+    private async Task<ErrorOr<TranscriptionDetails>> GetTranscriptionDetails(HandleTranscriptionCommand request, CancellationToken cancellationToken)
+    {
         var downloadedTranscription = await vonageService.DownloadTranscriptionAsync(
             request.Request.TranscriptionUrl,
             cancellationToken);
-        var call = await vonageService.GetCallInfoByConversationUuidAsync(request.Request.ConversationUuid, cancellationToken);
-        var smsResult = await downloadedTranscription
-            .Merge<string, CallInfo, SmsInfo>(call, (transcription, callInformation) => new SmsInfo(callInformation, transcription))
-            .ThenAsync(sms => vonageService.SendSmsAsync(sms.Call, sms.Transcript, cancellationToken));
-        return smsResult.IsError ? smsResult.Errors : Result.Success;
+        var summarizedTranscript = await downloadedTranscription.ThenAsync(transcript => mcpService.ProcessTranscriptWithMcpAsync(transcript, cancellationToken));
+        return downloadedTranscription.Merge<string, string, TranscriptionDetails>(summarizedTranscript, (t, s) => new TranscriptionDetails(t, s));
     }
 
     internal sealed class HandleTranscriptionCommandValidator : AbstractValidator<HandleTranscriptionCommand>
@@ -32,7 +41,8 @@ internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageSer
     }
 }
 
-public record SmsInfo(CallInfo Call, string Transcript);
+public record TranscriptionDetails(string RawTranscript, string SummarizedTranscript);
+public record SmsInfo(CallInfo Call, TranscriptionDetails Transcript);
 
 public static class ErrorOrExtensions
 {
