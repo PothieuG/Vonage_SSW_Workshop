@@ -14,4 +14,6 @@ public interface ISupabaseStorageService
         Stream audioStream,
         string filePath,
         CancellationToken cancellationToken = default);
+
+    string GetPublicUrl(string filePath);
 }
