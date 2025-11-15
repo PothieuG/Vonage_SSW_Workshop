@@ -62,6 +62,7 @@ internal sealed class VonageService : IVonageService
                 {
                     EndOnSilence = "3",
                     BeepStart = true,
+                    EventUrl = [$"{_settings.WebhookBaseUrl.TrimEnd('/')}/api/calls/recorded"],
                     Transcription = new RecordAction.TranscriptionSettings
                     {
                         EventUrl = [$"{_settings.WebhookBaseUrl.TrimEnd('/')}/api/calls/transcribed"],
@@ -152,6 +153,42 @@ internal sealed class VonageService : IVonageService
 
     private static Error GetSerializationFailure() =>
         Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
+
+    public async Task<ErrorOr<Stream>> DownloadRecordingAsync(string recordingUrl, CancellationToken cancellationToken = default) =>
+        await DownloadRecording(recordingUrl, cancellationToken)
+            .ThenAsync(recording => CopyRecordingStream(recording, cancellationToken));
+
+    private async Task<ErrorOr<HttpContent>> DownloadRecording(string transcriptionUrl, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, transcriptionUrl)
+            {
+                Headers = { Authorization = new AuthenticationHeaderValue("Bearer", _tokenGenerator.GenerateToken(_credentials).GetSuccessUnsafe()) },
+            }, cancellationToken);
+            return response.Content;
+        }
+        catch
+        {
+            return Error.Failure("Vonage.HttpRequestFailed", "Echec lors de l'envoi d'une requête HTTP.");
+        }
+    }
+
+    private async Task<ErrorOr<Stream>> CopyRecordingStream(HttpContent content, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var memoryStream = new MemoryStream();
+            await using var httpStream = await content.ReadAsStreamAsync(cancellationToken);
+            await httpStream.CopyToAsync(memoryStream, cancellationToken);
+            memoryStream.Position = 0;
+            return memoryStream;
+        }
+        catch
+        {
+            return Error.Failure("Vonage.MemoryStream", "Echec lors la copie du flux audio.");
+        }
+    }
 
     private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText)
     {
