@@ -10,6 +10,11 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(applicationAssembly, includeInternalTypes: true);
 
+        services.AddMediatR(config =>
+        {
+            config.RegisterServicesFromAssembly(applicationAssembly);
+        });
+
         return services;
     }
 }
