@@ -41,4 +41,6 @@ public sealed record TranscriptionCallbackRequest
     public string BuildTranscriptionFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/transcription.txt";
 
     public string BuildResumeFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/resume.txt";
+
+    public string BuildAudioFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/audio.mp3";
 }

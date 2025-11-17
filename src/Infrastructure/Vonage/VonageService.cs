@@ -124,8 +124,8 @@ internal sealed class VonageService : IVonageService
             "Vonage.CallNotFound",
             "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
 
-    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, CancellationToken cancellationToken) =>
-        await SendSms(BuildSmsRequest(callInfo, transcript, summarizedTranscriptText))
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, string audioUrl, CancellationToken cancellationToken) =>
+        await SendSms(BuildSmsRequest(callInfo, transcript, summarizedTranscriptText, audioUrl))
             .Then(message => message.MessageUuid.ToString());
 
     private async Task<ErrorOr<MessagesResponse>> SendSms(SmsRequest smsRequest)
@@ -140,13 +140,13 @@ internal sealed class VonageService : IVonageService
         }
     }
 
-    private static SmsRequest BuildSmsRequest(CallInfo callInfo, string transcript, string summarizedTranscriptText)
+    private static SmsRequest BuildSmsRequest(CallInfo callInfo, string transcript, string audioUrl, string summarizedTranscriptText)
     {
         var smsRequest = new SmsRequest
         {
             From = callInfo.FromNumber,
             To = callInfo.ToNumber,
-            Text = BuildSmsContent(callInfo.ToNumber, callInfo.DurationSeconds, transcript, summarizedTranscriptText)
+            Text = BuildSmsContent(callInfo.ToNumber, callInfo.DurationSeconds, transcript, summarizedTranscriptText, audioUrl),
         };
         return smsRequest;
     }
@@ -190,7 +190,7 @@ internal sealed class VonageService : IVonageService
         }
     }
 
-    private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText)
+    private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText, string audioUrl)
     {
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("📞 Nouveau message vocal");
@@ -199,6 +199,7 @@ internal sealed class VonageService : IVonageService
         messageBuilder.AppendLine($"Durée: {durationSeconds}s");
         messageBuilder.AppendLine($"🗒️ Résumé: {summarizedTranscriptText}");
         messageBuilder.AppendLine($"🗒️ Transcription: {transcriptText}");
+        messageBuilder.AppendLine($"🎧 Audio: {audioUrl}");
         messageBuilder.AppendLine("----------------------");
         messageBuilder.AppendLine("Bonne journée!");
         return messageBuilder.ToString();

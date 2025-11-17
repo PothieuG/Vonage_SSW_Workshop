@@ -15,7 +15,7 @@ internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageSer
             .ThenDoAsync(transcription => UploadToCloudStorage(transcription, request.Request, cancellationToken));
         var call = await vonageService.GetCallInfoByConversationUuidAsync(request.Request.ConversationUuid, cancellationToken);
         var smsResult = await MergeCallAndTranscription(transcriptionDetails, call)
-            .ThenAsync(smsDetails => vonageService.SendSmsAsync(smsDetails.Call, smsDetails.Transcript.RawTranscript, smsDetails.Transcript.SummarizedTranscript, cancellationToken));
+            .ThenAsync(smsDetails => vonageService.SendSmsAsync(smsDetails.Call, smsDetails.Transcript.RawTranscript, smsDetails.Transcript.SummarizedTranscript, storage.GetPublicUrl(request.Request.BuildAudioFilePath()), cancellationToken));
         return smsResult.IsError ? smsResult.Errors : Result.Success;
     }
 
