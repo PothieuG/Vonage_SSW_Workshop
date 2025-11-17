@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="OllamaSharp" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>
