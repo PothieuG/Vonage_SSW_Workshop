@@ -1,4 +1,4 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
@@ -8,12 +8,13 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/MCPServer/MCPServer.csproj" />
     <Project Path="src\Application\Application.csproj" />
     <Project Path="src\Domain\Domain.csproj" />
     <Project Path="src\Infrastructure\Infrastructure.csproj" />
     <Project Path="src\WebApi\WebApi.csproj" />
   </Folder>
   <Folder Name="/tools/">
-    <Project Path="tools\AppHost\AppHost.csproj" Type="Classic C#" />
+    <Project Path="tools\AppHost\AppHost.csproj" />
   </Folder>
 </Solution>

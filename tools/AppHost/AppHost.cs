@@ -6,4 +6,7 @@ builder
     .AddProject<WebApi>("api")
     .WithExternalHttpEndpoints();
 
+builder
+    .AddProject<MCPServer>("mcpserver");
+
 builder.Build().Run();
