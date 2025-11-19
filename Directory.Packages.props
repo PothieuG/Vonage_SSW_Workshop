@@ -54,6 +54,7 @@
     <PackageVersion Include="Polly" Version="8.6.2" />
     <PackageVersion Include="Respawn" Version="6.2.1" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.6.8" />
+    <PackageVersion Include="supabase-csharp" Version="0.16.2" />
     <PackageVersion Include="Testcontainers" Version="4.6.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.6.0" />
     <PackageVersion Include="Vogen" Version="7.0.4" />

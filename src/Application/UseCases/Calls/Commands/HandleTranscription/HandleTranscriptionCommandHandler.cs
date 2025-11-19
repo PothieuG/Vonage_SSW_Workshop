@@ -6,16 +6,23 @@ using Vonage_SSW_Workshop.Application.Common.Interfaces;
 
 namespace Vonage_SSW_Workshop.Application.UseCases.Calls.Commands.HandleTranscription;
 
-internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageService, IMcpService mcpService)
+internal sealed class HandleTranscriptionCommandHandler(IVonageService vonageService, IMcpService mcpService, ISupabaseStorageService storage)
     : IRequestHandler<HandleTranscriptionCommand, ErrorOr<Success>>
 {
     public async Task<ErrorOr<Success>> Handle(HandleTranscriptionCommand request, CancellationToken cancellationToken)
     {
-        var transcriptionDetails = await GetTranscriptionDetails(request, cancellationToken);
+        var transcriptionDetails = await GetTranscriptionDetails(request, cancellationToken)
+            .ThenDoAsync(transcription => UploadToCloudStorage(transcription, request.Request, cancellationToken));
         var call = await vonageService.GetCallInfoByConversationUuidAsync(request.Request.ConversationUuid, cancellationToken);
         var smsResult = await MergeCallAndTranscription(transcriptionDetails, call)
             .ThenAsync(smsDetails => vonageService.SendSmsAsync(smsDetails.Call, smsDetails.Transcript.RawTranscript, smsDetails.Transcript.SummarizedTranscript, cancellationToken));
         return smsResult.IsError ? smsResult.Errors : Result.Success;
+    }
+
+    private async Task UploadToCloudStorage(TranscriptionDetails transcription, TranscriptionCallbackRequest request, CancellationToken cancellationToken = default)
+    {
+        await storage.UploadTextAsync(transcription.RawTranscript, request.BuildTranscriptionFilePath(), cancellationToken);
+        await storage.UploadTextAsync(transcription.SummarizedTranscript, request.BuildResumeFilePath(), cancellationToken);
     }
 
     private static ErrorOr<SmsInfo> MergeCallAndTranscription(ErrorOr<TranscriptionDetails> transcriptionDetails, ErrorOr<CallInfo> call) =>

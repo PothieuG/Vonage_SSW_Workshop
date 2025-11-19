@@ -37,4 +37,8 @@ public sealed record TranscriptionCallbackRequest
     /// </summary>
     [JsonPropertyName("transcription_url")]
     public required string TranscriptionUrl { get; init; }
+
+    public string BuildTranscriptionFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/transcription.txt";
+
+    public string BuildResumeFilePath() => $"{DateTime.UtcNow:yyyy-MM-dd}_{ConversationUuid}/resume.txt";
 }
