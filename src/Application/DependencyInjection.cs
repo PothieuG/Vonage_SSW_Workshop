@@ -8,7 +8,10 @@ public static class DependencyInjection
     {
         var applicationAssembly = typeof(DependencyInjection).Assembly;
 
-        services.AddValidatorsFromAssembly(applicationAssembly, includeInternalTypes: true);
+        services.AddMediatR(config =>
+        {
+            config.RegisterServicesFromAssembly(applicationAssembly);
+        });
 
         return services;
     }

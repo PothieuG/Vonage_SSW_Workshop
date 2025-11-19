@@ -487,3 +487,4 @@ $RECYCLE.BIN/
 
 # App settings
 src/WebApi/appsettings.Development.json
+src/WebApi/Configuration/Keys/vonage_workshop_private_key.key
