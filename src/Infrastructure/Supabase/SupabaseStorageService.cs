@@ -66,4 +66,11 @@ internal sealed class SupabaseStorageService : ISupabaseStorageService
 
         return Unit.Value;
     }
+
+    public string GetPublicUrl(string filePath)
+    {
+        return _supabaseClient.Storage
+            .From(_settings.BucketName)
+            .GetPublicUrl(filePath);
+    }
 }
