@@ -9,7 +9,7 @@ For the purpose of this workshop, the workflow is a bit different (see "Applicat
 
 ## 🎯 Learning Objectives
 
-- Build a telecommunications application using Vonage API
+- Use Vonage's capabilities through APIs
 - Implement Clean Architecture principles in .NET
 - Orchestrate distributed applications with .NET Aspire
 - Create custom MCP (Model Context Protocol) servers and clients
@@ -19,7 +19,7 @@ For the purpose of this workshop, the workflow is a bit different (see "Applicat
 
 ## 🛠️ Technologies Used
 
-- **Vonage API** - Voice calls, SMS messaging, and call recording
+- **Vonage APIs** - Outbound voice calls, messaging, and call recording
 - **.NET 9+** - Application framework
 - **.NET Aspire** - Cloud-native orchestration and observability
 - **Clean Architecture** - Separation of concerns and maintainability
@@ -30,7 +30,7 @@ For the purpose of this workshop, the workflow is a bit different (see "Applicat
 
 ## 🔄 Application Flow
 
-1. **Incoming Call** → We are using our API to simulate a call to a number
+1. **Outbound Call** → We are using our API to simulate a call to a number
 2. **Voicemail Recording** → The called person will leave a voice message
 3. **Transcription** → Audio converted to text
 4. **AI Summarization** → MCP client requests Local LLM to summarize
