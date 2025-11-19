@@ -123,8 +123,8 @@ internal sealed class VonageService : IVonageService
             "Vonage.CallNotFound",
             "Aucun enregistrement d'appel trouvé pour cette conversation UUID");
 
-    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, CancellationToken cancellationToken) =>
-        await SendSms(BuildSmsRequest(callInfo, transcript))
+    public async Task<ErrorOr<string>> SendSmsAsync(CallInfo callInfo, string transcript, string summarizedTranscriptText, CancellationToken cancellationToken) =>
+        await SendSms(BuildSmsRequest(callInfo, transcript, summarizedTranscriptText))
             .Then(message => message.MessageUuid.ToString());
 
     private async Task<ErrorOr<MessagesResponse>> SendSms(SmsRequest smsRequest)
@@ -139,27 +139,28 @@ internal sealed class VonageService : IVonageService
         }
     }
 
-    private static Error GetSerializationFailure() =>
-        Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
-
-    private static SmsRequest BuildSmsRequest(CallInfo callInfo, string transcript)
+    private static SmsRequest BuildSmsRequest(CallInfo callInfo, string transcript, string summarizedTranscriptText)
     {
         var smsRequest = new SmsRequest
         {
             From = callInfo.FromNumber,
             To = callInfo.ToNumber,
-            Text = BuildSmsContent(callInfo.ToNumber, callInfo.DurationSeconds, transcript)
+            Text = BuildSmsContent(callInfo.ToNumber, callInfo.DurationSeconds, transcript, summarizedTranscriptText)
         };
         return smsRequest;
     }
 
-    private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText)
+    private static Error GetSerializationFailure() =>
+        Error.Failure("Vonage.DeserializationFailed", "Echec lors de la désérialisation du JSON de transcription.");
+
+    private static string BuildSmsContent(string fromNumber, string durationSeconds, string transcriptText, string summarizedTranscriptText)
     {
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("📞 Nouveau message vocal");
         messageBuilder.AppendLine("----------------------");
         messageBuilder.AppendLine($"De: {fromNumber}");
         messageBuilder.AppendLine($"Durée: {durationSeconds}s");
+        messageBuilder.AppendLine($"🗒️ Résumé: {summarizedTranscriptText}");
         messageBuilder.AppendLine($"🗒️ Transcription: {transcriptText}");
         messageBuilder.AppendLine("----------------------");
         messageBuilder.AppendLine("Bonne journée!");
