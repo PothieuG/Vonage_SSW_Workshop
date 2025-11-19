@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Vonage;
 using Vonage.Extensions;
+using Vonage.Request;
 using Vonage_SSW_Workshop.Application.Common.Interfaces;
 using Vonage_SSW_Workshop.Infrastructure.Vonage;
 
